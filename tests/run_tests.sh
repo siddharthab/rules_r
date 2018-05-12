@@ -28,3 +28,13 @@ bazel run //:binary
 bazel-bin/binary
 
 bazel test --color=yes --show_progress_rate_limit=30 --keep_going --test_output=errors //...
+
+# Hermeticity test to ensure that R and Rscript are invoked through the toolchain
+# and not directly at /usr/bin/{R,Rscript}.  The test somehow does not work on Mac OSX
+# (the sandbox implementations are different).
+if [[ "$(uname)" == "Linux" ]]; then
+  bazel test --color=yes --show_progress_rate_limit=30 --keep_going --test_output=errors \
+    --sandbox_block_path=/usr/bin/Rscript --sandbox_block_path=/usr/bin/R \
+    --extra_toolchains=@test_r_toolchain//:toolchain \
+    //...
+fi

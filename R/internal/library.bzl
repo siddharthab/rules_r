@@ -14,13 +14,14 @@
 
 load(
     "@com_grail_rules_r//R/internal:common.bzl",
-    _Rscript = "Rscript",
     _layer_library_deps = "layer_library_deps",
     _library_deps = "library_deps",
 )
 load("@com_grail_rules_r//R:providers.bzl", "RLibrary", "RPackage")
 
 def _library_impl(ctx):
+    tc = ctx.toolchains["@com_grail_rules_r//R/toolchains:r_toolchain_type"]
+
     library_deps = _library_deps(ctx.attr.pkgs)
 
     ctx.actions.expand_template(
@@ -30,6 +31,7 @@ def _library_impl(ctx):
             "{library_path}": ctx.attr.library_path,
             "{lib_dirs}": "\n".join([d.short_path for d in library_deps["lib_dirs"]]),
             "{Rscript}": " ".join(_Rscript),
+            "{tools_export_cmd}": _runtime_path_export(tc.tools),
         },
         is_executable = True,
     )
@@ -38,15 +40,15 @@ def _library_impl(ctx):
     files_tools = library_deps["transitive_tools"].to_list()
     container_file_map = layered_lib_files + {"tools": files_tools}
 
-    runfiles = ctx.runfiles(files = library_deps["lib_dirs"])
+    runfiles = ctx.runfiles(files = library_deps["lib_dirs"]).merge(tc.runfiles)
     return [
         DefaultInfo(
-            runfiles = runfiles,
             files = depset([ctx.outputs.executable]),
+            runfiles = runfiles,
         ),
         RLibrary(
-            pkgs = ctx.attr.pkgs,
             container_file_map = container_file_map,
+            pkgs = ctx.attr.pkgs,
         ),
         OutputGroupInfo(
             external = layered_lib_files["external"],
@@ -76,6 +78,7 @@ r_library = rule(
     doc = ("Rule to install the given package and all dependencies to " +
            "a user provided or system default R library site."),
     executable = True,
+    toolchains = ["@com_grail_rules_r//R/toolchains:r_toolchain_type"],
     implementation = _library_impl,
 )
 

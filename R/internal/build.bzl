@@ -18,8 +18,6 @@ load(
 )
 load(
     "@com_grail_rules_r//R/internal:common.bzl",
-    _R = "R",
-    _Rscript = "Rscript",
     _build_path_export = "build_path_export",
     _env_vars = "env_vars",
     _executables = "executables",
@@ -124,6 +122,8 @@ def _remove_file(files, path_to_remove):
 def _build_impl(ctx):
     # Implementation for the r_pkg rule.
 
+    tc = ctx.toolchains["@com_grail_rules_r//R/toolchains:r_toolchain_type"]
+
     pkg_name = _package_name(ctx)
     pkg_src_dir = _package_dir(ctx)
     pkg_lib_dir = ctx.actions.declare_directory("lib")
@@ -137,8 +137,7 @@ def _build_impl(ctx):
     build_tools = _executables(ctx.attr.build_tools) + transitive_tools
     all_input_files = (library_deps["lib_dirs"] + ctx.files.srcs +
                        cc_deps["files"].to_list() +
-                       build_tools.to_list() +
-                       [ctx.file.makevars_user, flock])
+                       build_tools.to_list() + [ctx.file.makevars_user, flock])
 
     if ctx.file.config_override:
         all_input_files += [ctx.file.config_override]
@@ -164,17 +163,15 @@ def _build_impl(ctx):
         "BUILD_ARGS": _sh_quote_args(ctx.attr.build_args),
         "INSTALL_ARGS": _sh_quote_args(ctx.attr.install_args),
         "EXPORT_ENV_VARS_CMD": "; ".join(_env_vars(ctx.attr.env_vars)),
-        "BUILD_TOOLS_EXPORT_CMD": _build_path_export(build_tools),
+        "BUILD_TOOLS_EXPORT_CMD": _build_path_export(build_tools + tc.tools),
         "FLOCK_PATH": flock.path,
         "REPRODUCIBLE_BUILD": "true" if "rlang-reproducible" in ctx.features else "false",
         "BAZEL_R_DEBUG": "true" if "rlang-debug" in ctx.features else "false",
         "BAZEL_R_VERBOSE": "true" if "rlang-verbose" in ctx.features else "false",
-        "R": " ".join(_R),
-        "RSCRIPT": " ".join(_Rscript),
     }
     ctx.actions.run(
         outputs = output_files,
-        inputs = all_input_files,
+        inputs = all_input_files + tc.files,
         executable = ctx.executable._build_sh,
         env = build_env,
         mnemonic = "RBuild",
@@ -185,7 +182,7 @@ def _build_impl(ctx):
     # Lightweight action to build just the source archive.
     ctx.actions.run(
         outputs = [pkg_src_archive],
-        inputs = pkg_src_files,
+        inputs = pkg_src_files + tc.files,
         executable = ctx.executable._build_sh,
         env = build_env + {"BUILD_SRC_ARCHIVE": "true"},
         mnemonic = "RSrcBuild",
@@ -199,18 +196,18 @@ def _build_impl(ctx):
             runfiles = ctx.runfiles([pkg_lib_dir], collect_default = True),
         ),
         RPackage(
-            pkg_name = pkg_name,
-            pkg_lib_dir = pkg_lib_dir,
-            src_files = ctx.files.srcs,
-            src_archive = pkg_src_archive,
             bin_archive = pkg_bin_archive,
-            pkg_deps = ctx.attr.deps,
-            transitive_pkg_deps = library_deps["transitive_pkg_deps"],
-            transitive_tools = transitive_tools,
             build_tools = build_tools,
-            makevars_user = ctx.file.makevars_user,
             cc_deps = cc_deps,
             external_repo = ("external-r-repo" in ctx.attr.tags),
+            makevars_user = ctx.file.makevars_user,
+            pkg_deps = ctx.attr.deps,
+            pkg_lib_dir = pkg_lib_dir,
+            pkg_name = pkg_name,
+            src_archive = pkg_src_archive,
+            src_files = ctx.files.srcs,
+            transitive_pkg_deps = library_deps["transitive_pkg_deps"],
+            transitive_tools = transitive_tools,
         ),
     ]
 
@@ -250,18 +247,18 @@ def _build_binary_pkg_impl(ctx):
             runfiles = ctx.runfiles([pkg_lib_dir], collect_default = True),
         ),
         RPackage(
-            pkg_name = pkg_name,
-            pkg_lib_dir = pkg_lib_dir,
-            src_files = None,
-            src_archive = None,
             bin_archive = pkg_bin_archive,
-            pkg_deps = ctx.attr.deps,
-            transitive_pkg_deps = library_deps["transitive_pkg_deps"],
-            transitive_tools = transitive_tools,
             build_tools = None,
-            makevars_user = None,
             cc_deps = None,
             external_repo = ("external-r-repo" in ctx.attr.tags),
+            makevars_user = None,
+            pkg_deps = ctx.attr.deps,
+            pkg_lib_dir = pkg_lib_dir,
+            pkg_name = pkg_name,
+            src_archive = None,
+            src_files = None,
+            transitive_pkg_deps = library_deps["transitive_pkg_deps"],
+            transitive_tools = transitive_tools,
         ),
     ]
 
@@ -335,6 +332,7 @@ r_pkg = rule(
         "bin_archive": "%{name}.bin.tar.gz",
         "src_archive": "%{name}.tar.gz",
     },
+    toolchains = ["@com_grail_rules_r//R/toolchains:r_toolchain_type"],
     implementation = _build_impl,
 )
 

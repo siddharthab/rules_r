@@ -108,7 +108,7 @@ if [[ "${ROCLETS}" ]]; then
 fi
 
 if "${BUILD_SRC_ARCHIVE:-"false"}"; then
-  silent "${R}" CMD build "${BUILD_ARGS}" "${PKG_SRC_DIR}"
+  silent R CMD build "${BUILD_ARGS}" "${PKG_SRC_DIR}"
   mv "${PKG_NAME}"*.tar.gz "${PKG_SRC_ARCHIVE}"
 
   trap - EXIT
@@ -133,7 +133,7 @@ export R_MAKEVARS_USER="${EXEC_ROOT}/${R_MAKEVARS_USER}"
 
 # Easy case -- we allow timestamp and install paths to be stamped inside the package files.
 if ! ${REPRODUCIBLE_BUILD}; then
-  silent "${R}" CMD INSTALL "${INSTALL_ARGS}" --build --library="${PKG_LIB_PATH}" \
+  silent R CMD INSTALL "${INSTALL_ARGS}" --build --library="${PKG_LIB_PATH}" \
     "${PKG_SRC_DIR}"
   mv "${PKG_NAME}"*gz "${PKG_BIN_ARCHIVE}"  # .tgz on macOS and .tar.gz on Linux.
 
@@ -173,7 +173,7 @@ repro_flags=(
 echo "CPPFLAGS += ${repro_flags[*]}" > "${R_MAKEVARS_SITE}"
 
 # Install the package to the common temp library.
-silent "${R}" CMD INSTALL "${INSTALL_ARGS}" --built-timestamp='' --no-lock --build --library="${TMP_LIB}" "${TMP_SRC_PKG}"
+silent R CMD INSTALL "${INSTALL_ARGS}" --built-timestamp='' --no-lock --build --library="${TMP_LIB}" "${TMP_SRC_PKG}"
 rm -rf "${PKG_LIB_PATH:?}/${PKG_NAME}" # Delete empty directories to make way for move.
 mv -f "${TMP_LIB}/${PKG_NAME}" "${PKG_LIB_PATH}/"
 mv "${PKG_NAME}"*gz "${PKG_BIN_ARCHIVE}"  # .tgz on macOS and .tar.gz on Linux.

@@ -24,10 +24,16 @@ load(
     "@com_grail_rules_r//makevars:makevars.bzl",
     _r_makevars = "r_makevars",
 )
+load(
+    "@com_grail_rules_r//R/toolchains:dependencies.bzl",
+    _default_r_toolchain = "default_r_toolchain",
+)
 
 def r_rules_dependencies(
         makevars_darwin = "@com_grail_rules_r_makevars_darwin",
-        makevars_linux = None):
+        makevars_linux = None,
+        r_version = "local",
+        local_r_home = None):
     _is_at_least("0.10", native.bazel_version)
 
     # TODO: Use bazel-skylib directly instead of replicating functionality when
@@ -37,9 +43,9 @@ def r_rules_dependencies(
     _maybe(
         _process_file,
         name = "com_grail_rules_r_makevars_darwin",
+        src = "@com_grail_rules_r//makevars:Makevars.darwin.tpl",
         processor = "@com_grail_rules_r//makevars:Makevars.darwin.sh",
         processor_args = ["-b"],
-        src = "@com_grail_rules_r//makevars:Makevars.darwin.tpl",
     )
 
     _maybe(
@@ -48,6 +54,9 @@ def r_rules_dependencies(
         makevars_darwin = makevars_darwin,
         makevars_linux = makevars_linux,
     )
+
+    if r_version:
+        _default_r_toolchain(local_r_home = local_r_home, version = r_version)
 
 def _maybe(repo_rule, name, **kwargs):
     if not native.existing_rule(name):
