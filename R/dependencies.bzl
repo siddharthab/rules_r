@@ -56,7 +56,11 @@ def r_rules_dependencies(
     )
 
     if r_version:
-        _default_r_toolchain(local_r_home = local_r_home, version = r_version)
+        _default_r_toolchain(
+            local_r_home = local_r_home,
+            makevars_user = "@com_grail_rules_r_makevars//:Makevars",
+            version = r_version,
+        )
 
 def _maybe(repo_rule, name, **kwargs):
     if not native.existing_rule(name):
